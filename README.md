@@ -8,6 +8,15 @@ Runs fully locally on Apple Silicon M1 (arm64). No cloud. No Docker.
 
 ## Architecture
 
+
+## Demo
+
+### English
+[▶️ Watch Demo](./demo-en.mp4)
+
+### Hindi
+[▶️ Watch Demo](./demo-hi.mp4)
+
 ```
 Browser (Mic → AudioWorklet → Int16 PCM)
         │
