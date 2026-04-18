@@ -4,6 +4,16 @@ Multilingual, low-latency speech transcription in the browser.
 Powered by **faster-whisper** (CTranslate2) + **FastAPI** WebSocket streaming.
 Runs fully locally on Apple Silicon M1 (arm64). No cloud. No Docker.
 
+## Demo
+
+### English
+
+![English Demo](./demo-en.gif)
+
+### Hindi
+
+![Hindi Demo](./demo-hi.gif)
+
 ---
 
 ## Architecture
