@@ -1,0 +1,7 @@
+.git
+__pycache__
+*.pyc
+.env
+*.gif
+*.mov
+*.mp4
