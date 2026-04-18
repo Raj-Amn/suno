@@ -14,7 +14,7 @@ class Settings(BaseSettings):
     )
 
     # Whisper model
-    model_size: str = "base"
+    model_size: str = "tiny"
     language: str = "auto"
     compute_type: str = "auto"
 
