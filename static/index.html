@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Suno — Real-time STT</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400&family=Syne:wght@800&display=swap');
+*{box-sizing:border-box;margin:0;padding:0}
+:root{--bg:#0a0a0f;--sf:#12121a;--br:#1e1e2e;--ac:#7c6af7;--ac2:#f76a8c;--tx:#e2e2f0;--mu:#5a5a7a;--gn:#4ade80;--rd:#f87171}
+html,body{height:100%;background:var(--bg);color:var(--tx);font-family:'DM Mono',monospace;overflow:hidden}
+.app{display:grid;grid-template-rows:auto 1fr auto;height:100vh;max-width:860px;margin:0 auto;padding:0 24px}
+header{display:flex;align-items:center;justify-content:space-between;padding:24px 0 16px;border-bottom:1px solid var(--br)}
+.logo{font-family:'Syne',sans-serif;font-weight:800;font-size:1.5rem;letter-spacing:-.03em;background:linear-gradient(135deg,var(--ac),var(--ac2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.logo span{font-weight:400;font-size:.65rem;letter-spacing:.12em;display:block;-webkit-text-fill-color:var(--mu);color:var(--mu);text-transform:uppercase;margin-top:2px}
+.pill{display:flex;align-items:center;gap:7px;font-size:.68rem;letter-spacing:.1em;text-transform:uppercase;color:var(--mu);background:var(--sf);border:1px solid var(--br);border-radius:99px;padding:6px 14px;transition:all .3s}
+.pill.ok{color:var(--gn);border-color:#4ade8033}.pill.rec{color:var(--ac);border-color:#7c6af733}.pill.err{color:var(--rd);border-color:#f8717133}
+.dot{width:7px;height:7px;border-radius:50%;background:currentColor;flex-shrink:0}
+.pill.rec .dot{animation:pulse 1.2s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.4;transform:scale(.7)}}
+main{display:flex;flex-direction:column;gap:20px;padding:24px 0;overflow:hidden}
+.vwrap{position:relative;height:80px;background:var(--sf);border:1px solid var(--br);border-radius:12px;overflow:hidden}
+canvas{width:100%;height:100%;display:block}
+.vlabel{position:absolute;top:8px;left:12px;font-size:.58rem;letter-spacing:.15em;text-transform:uppercase;color:var(--mu)}
+.tbox{flex:1;background:var(--sf);border:1px solid var(--br);border-radius:12px;padding:20px 24px;overflow-y:auto;min-height:200px;position:relative;scroll-behavior:smooth}
+.tbox::-webkit-scrollbar{width:4px}.tbox::-webkit-scrollbar-thumb{background:var(--br);border-radius:2px}
+.ph{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:10px;color:var(--mu);pointer-events:none;transition:opacity .4s}
+.ph svg{opacity:.3}.ph p{font-size:.72rem;letter-spacing:.06em;text-align:center;line-height:1.7}
+#tc{font-size:1.05rem;line-height:1.85;letter-spacing:.01em}
+.final{color:var(--tx)}.partial{color:var(--ac);opacity:.85}
+.partial::after{content:'▋';animation:blink .9s step-end infinite;margin-left:2px}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
+footer{padding:16px 0 24px;border-top:1px solid var(--br);display:flex;align-items:center;gap:14px}
+.rbtn{flex-shrink:0;width:54px;height:54px;border-radius:50%;border:2px solid var(--ac);background:transparent;cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--ac);transition:all .2s;outline:none}
+.rbtn:hover{background:#7c6af711;box-shadow:0 0 0 6px #7c6af711}
+.rbtn.on{background:var(--ac);color:var(--bg);animation:ring 2s ease-in-out infinite}
+@keyframes ring{0%,100%{box-shadow:0 0 0 4px #7c6af722,0 0 20px #7c6af733}50%{box-shadow:0 0 0 10px #7c6af711,0 0 36px #7c6af744}}
+.hint{flex:1;font-size:.68rem;color:var(--mu);letter-spacing:.04em;line-height:1.5}
+.cr{display:flex;align-items:center;gap:10px}
+.btn2{font-family:'DM Mono',monospace;font-size:.65rem;letter-spacing:.1em;text-transform:uppercase;padding:8px 16px;border-radius:8px;border:1px solid var(--br);background:var(--sf);color:var(--mu);cursor:pointer;transition:all .2s;outline:none}
+.btn2:hover{border-color:var(--ac);color:var(--ac)}
+.toast{position:fixed;bottom:28px;right:28px;background:var(--sf);border:1px solid var(--br);color:var(--tx);font-size:.72rem;letter-spacing:.05em;padding:10px 18px;border-radius:8px;opacity:0;transform:translateY(8px);transition:all .25s;pointer-events:none;z-index:100}
+.toast.show{opacity:1;transform:translateY(0)}
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div class="logo">suno<span>real-time transcription</span></div>
+    <div class="pill" id="pill"><div class="dot"></div><span id="pt">connecting…</span></div>
+  </header>
+  <main>
+    <div class="vwrap"><canvas id="cv"></canvas><div class="vlabel">audio input</div></div>
+    <div class="tbox" id="tb">
+      <div class="ph" id="ph">
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="22"/></svg>
+        <p>Press the mic button and start speaking.<br>Supports English · Hindi · Hinglish</p>
+      </div>
+      <div id="tc"></div>
+    </div>
+  </main>
+  <footer>
+    <button class="rbtn" id="rb">
+      <svg id="im" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="22"/></svg>
+      <svg id="is_" width="22" height="22" viewBox="0 0 24 24" fill="currentColor" stroke="none" style="display:none"><rect x="5" y="5" width="14" height="14" rx="2"/></svg>
+    </button>
+    <div class="hint" id="hint">Click to start recording. Transcription appears live.</div>
+    <div class="cr">
+      <button class="btn2" id="bc">Copy</button>
+      <button class="btn2" id="bx">Clear</button>
+    </div>
+  </footer>
+</div>
+<div class="toast" id="toast"></div>
+<script>
+'use strict';
+const WS_URL='ws://'+location.host+'/ws/audio',SR=16000,CS=1024,RMAX=10;
+let ws,actx,ms,wn,an,rec=false,rc=0,rt=null,pel=null;
+const pill=document.getElementById('pill'),pt=document.getElementById('pt'),
+  rb=document.getElementById('rb'),im=document.getElementById('im'),isp=document.getElementById('is_'),
+  hint=document.getElementById('hint'),tc=document.getElementById('tc'),
+  ph=document.getElementById('ph'),tb=document.getElementById('tb'),
+  bc=document.getElementById('bc'),bx=document.getElementById('bx'),
+  cv=document.getElementById('cv'),cx=cv.getContext('2d'),toast=document.getElementById('toast');
+
+function setSt(cls,lbl){pill.className='pill '+cls;pt.textContent=lbl;
+  if(cls==='rec')hint.textContent='Listening… speak clearly.';
+  else if(cls==='ok')hint.textContent='Click mic to start recording.';}
+
+function connectWS(){
+  ws=new WebSocket(WS_URL);ws.binaryType='arraybuffer';
+  ws.onopen=()=>{rc=0;setSt('ok','connected')};
+  ws.onmessage=(e)=>{try{const m=JSON.parse(e.data);
+    if(m.type==='ready')setSt('ok','ready');
+    else if(m.type==='partial')rPart(m.text);
+    else if(m.type==='final')rFinal(m.text);
+    else if(m.type==='error')showT('⚠ '+m.text);}catch{}};
+  ws.onclose=()=>{setSt('','disconnected');sched()};
+  ws.onerror=()=>setSt('err','error');}
+
+function sched(){if(rc>=RMAX){setSt('err','reconnect failed');return;}
+  rc++;const d=Math.min(2000*rc,12000);setSt('','reconnecting ('+rc+')…');
+  clearTimeout(rt);rt=setTimeout(connectWS,d);}
+
+async function startRec(){
+  try{ms=await navigator.mediaDevices.getUserMedia({audio:{sampleRate:SR,channelCount:1,echoCancellation:true,noiseSuppression:true}});}
+  catch{showT('Microphone access denied.');return;}
+  actx=new AudioContext({sampleRate:SR});
+  const code=`class P extends AudioWorkletProcessor{constructor(){super();this._b=[];this._n=0;}
+    process(inp){const ch=inp[0]?.[0];if(!ch)return true;
+      this._b.push(...ch);this._n+=ch.length;
+      if(this._n>=${CS}){const o=new Int16Array(this._n);
+        for(let i=0;i<this._n;i++)o[i]=Math.max(-32768,Math.min(32767,Math.round(this._b[i]*32768)));
+        this.port.postMessage(o.buffer,[o.buffer]);this._b=[];this._n=0;}return true;}}
+    registerProcessor('cp',P);`;
+  const u=URL.createObjectURL(new Blob([code],{type:'application/javascript'}));
+  await actx.audioWorklet.addModule(u);URL.revokeObjectURL(u);
+  const src=actx.createMediaStreamSource(ms);
+  an=actx.createAnalyser();an.fftSize=256;src.connect(an);
+  wn=new AudioWorkletNode(actx,'cp');src.connect(wn);
+  wn.port.onmessage=(e)=>{if(ws&&ws.readyState===1)ws.send(e.data);};
+  rec=true;rb.classList.add('on');im.style.display='none';isp.style.display='block';
+  setSt('rec','recording');drawWave();}
+
+function stopRec(){wn?.disconnect();an?.disconnect();ms?.getTracks().forEach(t=>t.stop());actx?.close();
+  wn=an=ms=actx=null;rec=false;rb.classList.remove('on');im.style.display='block';isp.style.display='none';
+  setSt('ok','ready');cancelAnimationFrame(window._r);cx.clearRect(0,0,cv.width,cv.height);}
+
+rb.addEventListener('click',()=>rec?stopRec():startRec());
+
+function rPart(t){hidePh();if(pel)pel.remove();pel=mk(t,'partial');tc.appendChild(pel);sb();}
+function rFinal(t){hidePh();if(pel){pel.remove();pel=null;}
+  if(tc.childNodes.length)tc.appendChild(document.createTextNode(' '));
+  const s=mk(t,'final');s.style.cssText='opacity:0;transition:opacity .3s ease';
+  tc.appendChild(s);requestAnimationFrame(()=>{s.style.opacity='1';});sb();}
+function mk(t,c){const s=document.createElement('span');s.className=c;s.textContent=t;return s;}
+function hidePh(){ph.style.opacity='0';ph.style.pointerEvents='none';}
+function sb(){tb.scrollTop=tb.scrollHeight;}
+bx.addEventListener('click',()=>{tc.innerHTML='';pel=null;ph.style.cssText='';});
+bc.addEventListener('click',()=>{const t=tc.innerText.trim();
+  if(!t){showT('Nothing to copy.');return;}navigator.clipboard.writeText(t).then(()=>showT('Copied ✓'));});
+function showT(m){toast.textContent=m;toast.classList.add('show');setTimeout(()=>toast.classList.remove('show'),2600);}
+
+function drawWave(){
+  const dpr=window.devicePixelRatio||1;cv.width=cv.offsetWidth*dpr;cv.height=cv.offsetHeight*dpr;cx.scale(dpr,dpr);
+  const W=cv.offsetWidth,H=cv.offsetHeight;
+  (function loop(){window._r=requestAnimationFrame(loop);cx.clearRect(0,0,W,H);if(!an)return;
+    const d=new Uint8Array(an.frequencyBinCount);an.getByteTimeDomainData(d);
+    const g=cx.createLinearGradient(0,0,W,0);g.addColorStop(0,'#7c6af7aa');g.addColorStop(.5,'#f76a8ccc');g.addColorStop(1,'#7c6af7aa');
+    cx.lineWidth=1.5;cx.strokeStyle=g;cx.beginPath();
+    const sw=W/d.length;let x=0;
+    for(let i=0;i<d.length;i++){const y=(d[i]/128)*H/2;i?cx.lineTo(x,y):cx.moveTo(x,y);x+=sw;}
+    cx.stroke();})();}
+
+connectWS();
+</script>
+</body>
+</html>
