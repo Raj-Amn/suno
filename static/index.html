@@ -72,9 +72,15 @@ footer{padding:16px 0 24px;border-top:1px solid var(--br);display:flex;align-ite
 </div>
 <div class="toast" id="toast"></div>
 <script>
+
 'use strict';
+const SR = 16000;
+const CS = 1024;
+const RMAX = 10;
+
 // const WS_URL='ws://'+location.host+'/ws/audio',SR=16000,CS=1024,RMAX=10;
 const WS_URL = (location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/ws/audio';
+
 let ws,actx,ms,wn,an,rec=false,rc=0,rt=null,pel=null;
 const pill=document.getElementById('pill'),pt=document.getElementById('pt'),
   rb=document.getElementById('rb'),im=document.getElementById('im'),isp=document.getElementById('is_'),
@@ -103,7 +109,17 @@ function sched(){if(rc>=RMAX){setSt('err','reconnect failed');return;}
   clearTimeout(rt);rt=setTimeout(connectWS,d);}
 
 async function startRec(){
-  try{ms=await navigator.mediaDevices.getUserMedia({audio:{sampleRate:SR,channelCount:1,echoCancellation:true,noiseSuppression:true}});}
+  // try{ms=await navigator.mediaDevices.getUserMedia({audio:{sampleRate:SR,channelCount:1,echoCancellation:true,noiseSuppression:true}});}
+  try{
+    ms = await navigator.mediaDevices.getUserMedia({
+      audio: {
+        channelCount: 1,
+        echoCancellation: true,
+        noiseSuppression: true
+      }
+    });
+  }
+
   catch{showT('Microphone access denied.');return;}
   actx=new AudioContext({sampleRate:SR});
   const code=`class P extends AudioWorkletProcessor{constructor(){super();this._b=[];this._n=0;}
